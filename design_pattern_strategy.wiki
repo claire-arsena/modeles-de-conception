@@ -1,0 +1,123 @@
+= Design Pattern : Stratégie (Strategy) =
+
+----
+
+== 1. En Bref ==
+* '''Le problème :''' Votre code contient de multiples structures conditionnelles (<code>if/else</code>, <code>switch</code>) pour choisir un comportement ou un algorithme spécifique au moment de l'exécution.
+* '''La solution :''' Encapsuler chaque algorithme dans une classe dédiée (une "Stratégie") et permettre à l'objet principal (le "Contexte") de changer de stratégie dynamiquement.
+* '''Quand l'utiliser :''' Pour les calculs de prix, les modes de paiement, les types d'export (PDF/CSV), ou toute logique métier ayant plusieurs variantes interchangeables.
+
+== 2. Concept & Diagramme ==
+Le pattern repose sur la '''composition''' et le polymorphisme plutôt que sur l'héritage. Le "Contexte" délègue le travail à une "Stratégie".
+
+[[Fichier:Strategy_Pattern_UML.png|vignette|centré|Diagramme de classe UML du pattern Stratégie]]
+
+Il se compose de trois éléments :
+# '''Context (Contexte) :''' La classe principale utilisée par le client (ex: <code>Commande</code>). Elle possède une référence vers l'interface Stratégie.
+# '''Strategy (Interface) :''' Le contrat commun que toutes les variantes doivent respecter (ex: <code>FraisDePort</code>).
+# '''Concrete Strategy (Implémentation) :''' Le code spécifique de chaque algorithme (ex: <code>LivraisonExpress</code>, <code>LivraisonStandard</code>).
+
+== 3. Exemple d'Implémentation (Java) ==
+''Cas d'usage : Un système de calcul de frais de port selon le mode de livraison choisi.''
+
+=== A. L'Interface (Le contrat) ===
+<source lang="java">
+// L'interface commune à toutes les stratégies
+public interface StrategieLivraison {
+    double calculerPrix(double poidsKg);
+}
+</source>
+
+=== B. Les Stratégies Concrètes (Les variantes) ===
+<source lang="java">
+// Stratégie 1 : Livraison standard (pas chère)
+public class LivraisonStandard implements StrategieLivraison {
+    @Override
+    public double calculerPrix(double poidsKg) {
+        return poidsKg * 5.0; // 5€ par Kg
+    }
+}
+
+// Stratégie 2 : Livraison Express (chère mais rapide)
+public class LivraisonExpress implements StrategieLivraison {
+    @Override
+    public double calculerPrix(double poidsKg) {
+        // 10€ par Kg + 15€ de frais de dossier
+        return (poidsKg * 10.0) + 15.0; 
+    }
+}
+</source>
+
+=== C. Le Contexte (L'objet utilisé par le client) ===
+<source lang="java">
+public class Commande {
+    // La commande possède une stratégie, mais ne connait pas l'implémentation exacte
+    private StrategieLivraison strategieLivraison;
+    private double poidsTotal;
+
+    public Commande(double poidsTotal, StrategieLivraison strategieInitiale) {
+        this.poidsTotal = poidsTotal;
+        this.strategieLivraison = strategieInitiale;
+    }
+
+    // Setter vital pour le pattern : permet de changer l'algorithme au runtime
+    public void setStrategieLivraison(StrategieLivraison nouvelleStrategie) {
+        this.strategieLivraison = nouvelleStrategie;
+    }
+
+    public double calculerTotalFraisDePort() {
+        // Délégation du calcul à la stratégie actuelle
+        return this.strategieLivraison.calculerPrix(this.poidsTotal);
+    }
+}
+</source>
+
+=== D. Utilisation (Main) ===
+<source lang="java">
+public class DemoApp {
+    public static void main(String[] args) {
+        // Création d'une commande de 10kg avec livraison Standard par défaut
+        Commande maCommande = new Commande(10.0, new LivraisonStandard());
+        System.out.println("Coût Standard : " + maCommande.calculerTotalFraisDePort() + "€");
+        
+        // Le client change d'avis et veut une livraison Express
+        // On change simplement la stratégie sans recréer l'objet commande
+        maCommande.setStrategieLivraison(new LivraisonExpress());
+        System.out.println("Coût Express : " + maCommande.calculerTotalFraisDePort() + "€");
+    }
+}
+</source>
+
+== 4. Quand utiliser ce pattern ? ==
+Utilisez le pattern Stratégie si vous cochez une de ces cases :
+
+* [ ] Votre classe contient un énorme <code>switch</code> ou de multiples <code>if/else</code> qui rendent le code difficile à lire.
+* [ ] Vous avez besoin de changer d'algorithme dynamiquement (au "runtime") selon les choix de l'utilisateur.
+* [ ] Vous voulez isoler la logique métier complexe (les algorithmes) des détails d'implémentation de la classe principale.
+* [ ] Vous souhaitez respecter le principe '''Open/Closed''' (pouvoir ajouter une nouvelle méthode de livraison sans toucher au fichier <code>Commande.java</code>).
+
+== 5. Avantages et Inconvénients ==
+
+{| class="wikitable" width="100%"
+! width="50%" | Avantages
+! width="50%" | Inconvénients
+|-
+| '''Propre et Lisible :''' Élimine les conditions complexes dans la classe principale.
+| '''Complexité structurelle :''' Augmente le nombre de classes dans le projet.
+|-
+| '''Extensible :''' On peut ajouter une stratégie (ex: <code>LivraisonDrone</code>) sans casser le code existant.
+| '''Connaissance requise :''' Le code appelant (Client) doit connaître les différentes stratégies pour choisir la bonne.
+|-
+| '''Testable :''' Chaque stratégie peut être testée unitairement de façon isolée (Mocking facile).
+| '''Surcharge :''' Si les algorithmes sont très simples, créer des classes dédiées peut être excessif.
+|}
+
+== 6. Confusion fréquente ==
+* '''Stratégie vs État (State) :'''
+** ''Similitude :'' Le diagramme de classe est presque identique.
+** ''Différence :'' Dans le pattern '''Stratégie''', le client choisit activement l'algorithme ("Je veux payer par PayPal"). Dans le pattern '''État''', le changement de comportement est souvent interne et automatique ("La commande passe de 'En attente' à 'Expédiée'").
+
+== 7. Liens Utiles / Références ==
+* [URL_REPO_GIT Lien vers le repo Git du projet avec l'exemple complet]
+* [https://docs.oracle.com/javase/tutorial/java/IandI/createinterface.html Documentation Java sur les Interfaces]
+* [[Règles_de_gestion_livraisons|Règles de gestion des livraisons (Lien interne)]]
